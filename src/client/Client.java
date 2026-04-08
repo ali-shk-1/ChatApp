@@ -6,8 +6,8 @@ import java.net.Socket;
 import java.util.Scanner;
 
 public class Client {
-    private static final String SERVER_ADDRESS = "localhost";
-    private static final int PORT = 1234;
+    private static final String SERVER_ADDRESS = "bore.pub";
+    private static final int PORT = 61664;
 
     public static void main(String[] args) {
         try (Socket socket = new Socket(SERVER_ADDRESS, PORT);

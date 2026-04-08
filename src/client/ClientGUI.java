@@ -60,14 +60,31 @@ public class ClientGUI {
     }
 
     private void connectToServer() {
-        // Ask for username on launch
+        // ASK FOR BORE ADDRESS AND PORT
+        String serverAddress = JOptionPane.showInputDialog(
+                frame,
+                "Enter Server Address (host:port):",
+                "bore.pub:61664"
+        );
+
+        if (serverAddress == null || !serverAddress.contains(":")) {
+            System.exit(0);
+        }
+
+        // ASK FOR USERNAME
         username = JOptionPane.showInputDialog(frame, "Enter your username:");
         if (username == null || username.trim().isEmpty()) {
             System.exit(0);
         }
 
         try {
-            Socket socket = new Socket("192.168.0.103", 1234);
+            // Split the input into host and port
+            String[] parts = serverAddress.split(":");
+            String host = parts[0];
+            int port = Integer.parseInt(parts[1]);
+
+            // Use the dynamic host and port
+            Socket socket = new Socket(host, port);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
 
@@ -79,8 +96,8 @@ public class ClientGUI {
             // Start receiving thread
             new Thread(this::listenForMessages).start();
 
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(frame, "Error: Could not connect to server.");
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(frame, "Error: Could not connect to " + serverAddress);
             System.exit(0);
         }
     }
