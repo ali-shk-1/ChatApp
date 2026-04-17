@@ -10,7 +10,7 @@ public class ClientHandler implements Runnable {
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
-    public String username; // Public so Server.java can access it easily
+    public String username;
     private String currentRoom = "general";
 
     public ClientHandler(Socket socket) {
@@ -25,11 +25,10 @@ public class ClientHandler implements Runnable {
 
     public String getUsername() { return username; }
 
-    /**
-     * Sends an encrypted message to this specific client.
-     */
     public void sendMessage(String message) {
-        out.println(EncryptionUtil.encrypt(message));
+        if (out != null) {
+            out.println(EncryptionUtil.encrypt(message));
+        }
     }
 
     @Override
@@ -41,17 +40,18 @@ public class ClientHandler implements Runnable {
             if (encryptedUser == null) return;
             username = EncryptionUtil.decrypt(encryptedUser);
 
-            // Step 2: Database Update - Register the user or mark as online
-            // FIX: Using registerUser so new users are actually saved to the database.
-            // Note: We are passing a default password since the GUI only asks for a username right now.
+            // Step 2: Database Update
             DatabaseManager.registerUser(username, "defaultPassword123");
+            DatabaseManager.setUserStatus(username, true);
 
             // Step 3: Join default room 'general'
             synchronized (Server.rooms) {
-                Server.rooms.get(currentRoom).add(this);
+                if (Server.rooms.containsKey(currentRoom)) {
+                    Server.rooms.get(currentRoom).add(this);
+                }
             }
 
-            // Step 4: Loading previous messages (The WhatsApp behavior)
+            // Step 4: Loading previous messages
             List<String> history = DatabaseManager.getRoomHistory(currentRoom);
             sendMessage("--- History for " + currentRoom + " ---");
             for (String msg : history) {
@@ -59,20 +59,27 @@ public class ClientHandler implements Runnable {
             }
             sendMessage("--- End of History ---");
 
-            // Notify others
             Server.broadcastToRoom(currentRoom, username + " has joined the room.", this);
 
-            // Step 5: Main Command & Message Loop
+            // Step 5: Main Loop with FIXES
             String encryptedInput;
             while ((encryptedInput = in.readLine()) != null) {
                 String message = EncryptionUtil.decrypt(encryptedInput);
 
+                // --- FIX 1: Ignore empty or null messages ---
+                if (message == null || message.trim().isEmpty()) {
+                    continue;
+                }
+
                 if (message.startsWith("/")) {
                     handleCommand(message);
                 } else {
-                    // Normal message: Broadcast to room and save to DB
-                    Server.broadcastToRoom(currentRoom, username + ": " + message, this);
-                    DatabaseManager.saveMessage(username, currentRoom, message);
+                    // --- FIX 2: Ensure trimmed message is not empty before saving ---
+                    String cleanMsg = message.trim();
+                    if (!cleanMsg.isEmpty()) {
+                        Server.broadcastToRoom(currentRoom, username + ": " + cleanMsg, this);
+                        DatabaseManager.saveMessage(username, currentRoom, cleanMsg);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -83,6 +90,7 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleCommand(String commandStr) {
+        // Preserving your original 3-part split for /msg support
         String[] parts = commandStr.split(" ", 3);
         String command = parts[0].toLowerCase();
 
@@ -109,22 +117,21 @@ public class ClientHandler implements Runnable {
             case "/join":
                 if (parts.length > 1) {
                     String targetRoom = parts[1];
-                    if (Server.rooms.containsKey(targetRoom)) {
-                        // Leave old room
-                        Server.broadcastToRoom(currentRoom, username + " left the room.", this);
-                        Server.rooms.get(currentRoom).remove(this);
+                    synchronized (Server.rooms) {
+                        if (Server.rooms.containsKey(targetRoom)) {
+                            Server.broadcastToRoom(currentRoom, username + " left the room.", this);
+                            Server.rooms.get(currentRoom).remove(this);
 
-                        // Join new room
-                        currentRoom = targetRoom;
-                        Server.rooms.get(currentRoom).add(this);
-                        sendMessage("Switched to room: " + currentRoom);
+                            currentRoom = targetRoom;
+                            Server.rooms.get(currentRoom).add(this);
+                            sendMessage("Switched to room: " + currentRoom);
 
-                        // Load history for the new room
-                        for (String msg : DatabaseManager.getRoomHistory(currentRoom)) {
-                            sendMessage("[History] " + msg);
+                            for (String msg : DatabaseManager.getRoomHistory(currentRoom)) {
+                                sendMessage("[History] " + msg);
+                            }
+                        } else {
+                            sendMessage("Room does not exist.");
                         }
-                    } else {
-                        sendMessage("Room does not exist.");
                     }
                 }
                 break;
@@ -148,7 +155,7 @@ public class ClientHandler implements Runnable {
                 break;
 
             case "/typing":
-                // Broadcast typing signal to everyone else in the room
+                // Broadcast typing signal (not saved to DB)
                 Server.broadcastToRoom(currentRoom, "/typing " + username, this);
                 break;
 
@@ -182,8 +189,6 @@ public class ClientHandler implements Runnable {
         Server.broadcastToRoom(currentRoom, username + " has left the chat.", null);
         try {
             if (socket != null) socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        } catch (IOException e) { e.printStackTrace(); }
     }
 }
