@@ -2,7 +2,6 @@
 
 A full-featured, Java-based client-server chat application with GUI, multiple chat rooms, private messaging, typing indicators, XOR encryption, and MySQL persistence.
 
-> Built for Object-Oriented Programming — SEECS, NUST
 
 ---
 
