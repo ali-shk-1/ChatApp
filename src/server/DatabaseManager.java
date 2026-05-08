@@ -74,7 +74,7 @@ public class DatabaseManager {
         // List to store history
         List<String> history = new ArrayList<>();
         // Fetch last fifty messages
-        String query = "SELECT sender_username, message_text FROM messages WHERE room_name = ? ORDER BY sent_at ASC LIMIT 50";
+        String query = "SELECT sender_username, message_text FROM messages WHERE room_name = ? ORDER BY sent_at ASC LIMIT 100";
         try (Connection conn = getConnection(); PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setString(1, roomName);
             // Execute room history query
