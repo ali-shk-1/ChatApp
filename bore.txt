@@ -1,0 +1,1 @@
+bore local 1234 --to bore.pub
