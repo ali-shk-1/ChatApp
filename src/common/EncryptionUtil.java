@@ -60,7 +60,7 @@ public class EncryptionUtil {
 
         // Verify decryption matches original
         if (testMessage.equals(decryptedMessage)) {
-            System.out.println("\nSUCCESS: Step 11 is complete. Encryption works!");
+            System.out.println("\nSUCCESS:  Encryption works!");
         } else {
             System.out.println("\nERROR: Decrypted string does not match the original.");
         }
